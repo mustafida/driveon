@@ -1,0 +1,61 @@
+name: drive_on
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.2.2
+  google_sign_in: ^6.2.1       # <— penting, ini yang bikin GoogleSignIn dikenal
+  firebase_core: ^3.6.0        # kalau kamu sudah punya firebase_options.dart, biarkan
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/car_intro.png
+    - assets/images/onboard1.png
+    - assets/images/onboard2.png
+    - assets/images/onboard3.png
+    - assets/images/toyota_avanza.png
+    - assets/images/mitsubishi_xpander.png
+    - assets/images/toyota_innova_reborn.png
+    - assets/images/mitsubishi_pajero_sport.png
+    - assets/images/bmw5_series.png
+    - assets/images/daihatsu_xenia.png
+    - assets/images/honda_brio.png
+    - assets/images/honda_mobilio.png
+    - assets/images/toyota_calya.png
+    - assets/images/honda_crv.png
+    - assets/images/toyota_fortuner.png
+    - assets/images/toyota_alphard.png
+    - assets/images/lexus_lm.png
+    - assets/images/hyundai_staria.png
+    - assets/images/icon_google.png
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/font/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/font/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/font/Inter-SemiBold.ttf
+          weight: 600
+
+    - family: PlayfairDisplaySC
+      fonts:
+        - asset: assets/font/PlayfairDisplaySC-Bold.ttf
+          weight: 700
