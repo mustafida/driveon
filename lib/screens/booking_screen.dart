@@ -180,25 +180,28 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           ),
 
-          // Tombol konfirmasi
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _onConfirmPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+          // Tombol konfirmasi (NAIK DIKIT + SAFEAREA)
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _onConfirmPressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBlue,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Konfirmasi Pemesanan',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                  child: const Text(
+                    'Konfirmasi Pemesanan',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

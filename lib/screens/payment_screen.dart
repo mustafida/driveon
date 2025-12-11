@@ -52,8 +52,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return sum;
   }
 
-  String _dateText(DateTime d) =>
-      '${d.day} ${_monthName(d.month)} ${d.year} 12.00';
+  // ✅ SEKARANG JAM-NYA IKUT DateTime (bukan 12.00 terus)
+  String _dateText(DateTime d) {
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    // pakai format 12.00 / 14.30 biar mirip yang kamu pakai
+    return '${d.day} ${_monthName(d.month)} ${d.year} $hh.$mm';
+  }
 
   String _monthName(int m) {
     const months = [
@@ -63,6 +68,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       'Apr',
       'Mei',
       'Jun',
+      'Jul',
       'Agu',
       'Sep',
       'Okt',
@@ -260,59 +266,61 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
 
-          // ======== TOTAL + KONFIRMASI (fixed di bawah) ========
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Column(
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryBlue,
-                      disabledBackgroundColor: primaryBlue,
-                      minimumSize: const Size.fromHeight(46),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+          // ======== TOTAL + KONFIRMASI (fixed di bawah, SAFEAREA) ========
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBlue,
+                        disabledBackgroundColor: primaryBlue,
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      'Total   Rp.${formatPrice(_total)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed:
-                        (_selectedMethod == null) ? null : _confirmPayment,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryBlue,
-                      disabledBackgroundColor: Colors.grey,
-                      minimumSize: const Size.fromHeight(46),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Text(
-                      'Konfirmasi Pembayaran',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                      child: Text(
+                        'Total   Rp.${formatPrice(_total)}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed:
+                          (_selectedMethod == null) ? null : _confirmPayment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryBlue,
+                        disabledBackgroundColor: Colors.grey,
+                        minimumSize: const Size.fromHeight(46),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: const Text(
+                        'Konfirmasi Pembayaran',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 4),
         ],
       ),
     );

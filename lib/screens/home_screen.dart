@@ -11,7 +11,7 @@ import 'booking_screen.dart';
 import 'orders_screen.dart';
 import 'profile_screen.dart';
 
-// order store & status (untuk cek mobil sedang disewa)
+// order store & status (untuk cek mobil sedang disewa & riwayat)
 import '../data/orders_store.dart';
 import '../models/order.dart';
 
@@ -30,8 +30,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String _selectedCategory = 'All';
 
+  // ====== KATEGORI (untuk swipe) ======
+  final List<String> _categories = const ['All', 'Ekonomi', 'Menengah', 'Luxury'];
+  String _selectedCategory = 'All';
+  int _currentCategoryIndex = 0;
+  late final PageController _categoryPageController;
+
+  // ====== DATA MOBIL ======
   final List<Car> all = allCars;
 
   late final List<Car> popular = allCars.where((c) {
@@ -45,10 +51,39 @@ class _HomeScreenState extends State<HomeScreen> {
     return pop.contains(c.name);
   }).toList();
 
-  List<Car> get filtered {
-    List<Car> base = (_selectedCategory == 'All')
-        ? popular
-        : all.where((c) => c.category == _selectedCategory).toList();
+  // ====== LOADING (SKELETON) ======
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _categoryPageController = PageController(initialPage: 0);
+
+    // simulasi loading awal biar skeleton kelihatan stabil
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _categoryPageController.dispose();
+    super.dispose();
+  }
+
+  /// Filter list mobil berdasarkan kategori + search
+  List<Car> _filteredForCategory(String category) {
+    List<Car> base;
+    if (category == 'All') {
+      base = popular;
+    } else {
+      base = all.where((c) => c.category == category).toList();
+    }
 
     if (_searchQuery.isEmpty) return base;
 
@@ -71,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final tabs = [
       _buildHome(primaryBlue),
       const OrdersScreen(),
-      const _HistoryScreen(), // tab riwayat (sementara dummy)
+      const _HistoryScreen(), // ✅ sekarang bukan dummy lagi
       const ProfileScreen(),
     ];
 
@@ -126,22 +161,44 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 14),
 
           Text(
-            _selectedCategory == 'All'
+            _currentCategoryIndex == 0
                 ? 'Sewa Terlaris'
-                : 'Sewa $_selectedCategory',
-            style:
-                const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                : 'Sewa ${_categories[_currentCategoryIndex]}',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
 
+          // ====== LIST / PAGEVIEW + SKELETON ======
           Expanded(
-            child: filtered.isEmpty
-                ? const Center(child: Text('Tidak ada hasil'))
-                : ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) =>
-                        _carCard(filtered[i], primaryBlue),
+            child: _isLoading
+                ? _buildSkeletonList()
+                : PageView.builder(
+                    controller: _categoryPageController,
+                    onPageChanged: (page) {
+                      setState(() {
+                        _currentCategoryIndex = page;
+                        _selectedCategory = _categories[page];
+                        // tiap pindah kategori, reset search biar nggak bikin bingung
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
+                    },
+                    itemCount: _categories.length,
+                    itemBuilder: (context, pageIndex) {
+                      final categoryName = _categories[pageIndex];
+                      final cars = _filteredForCategory(categoryName);
+
+                      if (cars.isEmpty) {
+                        return const Center(child: Text('Tidak ada hasil'));
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        itemCount: cars.length,
+                        itemBuilder: (_, i) =>
+                            _carCard(cars[i], primaryBlue),
+                      );
+                    },
                   ),
           )
         ],
@@ -186,20 +243,27 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _categoryRow() {
-    const list = ['All', 'Ekonomi', 'Menengah', 'Luxury'];
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: list.map((c) {
-          final selected = _selectedCategory == c;
+        children: List.generate(_categories.length, (index) {
+          final c = _categories[index];
+          final selected = index == _currentCategoryIndex;
+
           return GestureDetector(
             onTap: () {
-              _searchController.clear();
               setState(() {
+                _currentCategoryIndex = index;
                 _selectedCategory = c;
                 _searchQuery = '';
+                _searchController.clear();
               });
+
+              _categoryPageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+              );
             },
             child: Padding(
               padding: const EdgeInsets.only(right: 16),
@@ -227,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           );
-        }).toList(),
+        }),
       ),
     );
   }
@@ -235,57 +299,56 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _carCard(Car car, Color primaryBlue) {
     final rented = _isCarRented(car); // ✅ cek status sewa
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          )
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Row(
-          children: [
-            // TEKS KIRI
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    car.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+    return GestureDetector(
+      // klik di mana saja di card -> masuk ke detail (kalau tidak sedang disewa)
+      onTap: () {
+        if (rented) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CarDetailScreen(car: car),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            )
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Row(
+            children: [
+              // TEKS KIRI
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      car.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    car.type,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
+                    const SizedBox(height: 8),
+                    Text(
+                      car.type,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 26),
-                  GestureDetector(
-                    onTap: rented
-                        ? null
-                        : () {
-                            // 👉 masuk ke DETAIL MOBIL dulu
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => CarDetailScreen(car: car),
-                              ),
-                            );
-                          },
-                    child: Container(
+                    const SizedBox(height: 26),
+                    Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 30,
                         vertical: 12,
@@ -301,54 +364,237 @@ class _HomeScreenState extends State<HomeScreen> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                    )
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // GAMBAR + HARGA KANAN
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  SizedBox(
+                    width: 150,
+                    height: 100,
+                    child: Image.asset(
+                      car.imagePath,
+                      fit: BoxFit.contain,
                     ),
-                  )
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Rp. ${formatPrice(car.pricePerDay)}/hari',
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
-            ),
-
-            const SizedBox(width: 16),
-
-            // GAMBAR + HARGA KANAN (sesuai desain figma)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                SizedBox(
-                  width: 150,
-                  height: 100,
-                  child: Image.asset(
-                    car.imagePath,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Rp. ${formatPrice(car.pricePerDay)}/hari',
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _buildSkeletonList() {
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 16),
+      itemCount: 5,
+      itemBuilder: (_, i) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 16,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 14,
+                        width: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        height: 36,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      width: 150,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      height: 14,
+                      width: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
-// -------------------- RIWAYAT SCREEN (dummy) --------------------
+// -------------------- RIWAYAT SCREEN (TERHUBUNG) --------------------
 
 class _HistoryScreen extends StatelessWidget {
   const _HistoryScreen();
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Riwayat / Transaksi (akan diisi nanti)',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+    // ambil semua order yang status-nya finished (sudah dinilai/diulas)
+    final finishedOrders = OrdersStore.instance.orders
+        .where((o) => o.status == OrderStatus.finished)
+        .toList();
+
+    if (finishedOrders.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            'Belum ada riwayat pesanan.\n'
+            'Pesanan yang sudah selesai dan sudah kamu berikan rating '
+            'akan muncul di sini.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      itemCount: finishedOrders.length,
+      itemBuilder: (context, index) {
+        final order = finishedOrders[index];
+        return _HistoryOrderCard(order: order);
+      },
+    );
+  }
+}
+
+class _HistoryOrderCard extends StatelessWidget {
+  final Order order;
+
+  const _HistoryOrderCard({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final car = order.car;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // gambar mobil
+            SizedBox(
+              width: 80,
+              height: 60,
+              child: Image.asset(
+                car.imagePath,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // teks
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    car.name,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Pesanan selesai dan sudah diulas',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Colors.green,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -461,7 +707,7 @@ class CarDetailScreen extends StatelessWidget {
 
           // tombol Pesan Sekarang -> lanjut ke BookingScreen
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(

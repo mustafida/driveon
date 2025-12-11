@@ -23,7 +23,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // 🟦 SEKARANG: apapun kondisinya, selalu balik ke /home
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/home',
+              (route) => false,
+            );
+          },
         ),
         title: const Text(
           'Profil',
@@ -270,7 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 22,
                         height: 22,
                         child: Image.asset(
-                          'assets/icons/icon_google.png',
+                          'assets/images/icon_google.png',
                           fit: BoxFit.contain,
                         ),
                       ),

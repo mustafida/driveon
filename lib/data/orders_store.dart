@@ -1,5 +1,3 @@
-// lib/data/orders_store.dart
-
 import '../models/order.dart';
 
 class OrdersStore {
@@ -78,5 +76,14 @@ class OrdersStore {
       order.rating ??= 5;
       order.status = OrderStatus.finished;
     }
+  }
+
+  /// ======== BARU: dipanggil saat user LOGOUT ========
+  ///
+  /// Hapus semua pesanan & reset idCounter,
+  /// supaya setelah ganti akun data pesanan mulai dari nol lagi.
+  void clearAll() {
+    _orders.clear();
+    _idCounter = 0;
   }
 }

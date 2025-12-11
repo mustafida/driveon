@@ -98,36 +98,39 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _selected == null
-                    ? null
-                    : () {
-                        // kirim balik nama metode
-                        Navigator.pop(context, _selected);
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  disabledBackgroundColor: Colors.grey,
-                  minimumSize: const Size.fromHeight(46),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(26),
+          // Tombol bawah (SAFEAREA + dinaikin)
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _selected == null
+                      ? null
+                      : () {
+                          // kirim balik nama metode
+                          Navigator.pop(context, _selected);
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryBlue,
+                    disabledBackgroundColor: Colors.grey,
+                    minimumSize: const Size.fromHeight(46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(26),
+                    ),
                   ),
-                ),
-                child: const Text(
-                  'Pilih Metode Pembayaran',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
+                  child: const Text(
+                    'Pilih Metode Pembayaran',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 4),
         ],
       ),
     );

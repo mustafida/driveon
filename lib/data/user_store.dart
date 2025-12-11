@@ -1,140 +1,202 @@
-// lib/data/user_store.dart
-//
-// Penyimpanan sederhana untuk status user + login Google (tanpa Firebase Auth dulu)
+import 'package:google_sign_in/google_sign_in.dart' as g_sign;
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:google_sign_in/google_sign_in.dart';
+import '../data/orders_store.dart';
 
 class UserStore {
   UserStore._();
 
-  /// singleton, panggil: UserStore.instance
   static final UserStore instance = UserStore._();
 
-  bool isLoggedIn = false;
+  /// Google Sign-In
+  final g_sign.GoogleSignIn _googleSignIn = g_sign.GoogleSignIn(
+    scopes: <String>[
+      'email',
+      'profile',
+    ],
+  );
 
+  // ================== STATE USER ==================
+
+  bool _isLoggedIn = false;
   String firstName = '';
   String lastName = '';
   String email = '';
   String region = 'Pilih wilayah';
 
-  /// GoogleSignIn versi klasik
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  bool get isLoggedIn => _isLoggedIn;
 
   String get fullName {
-    if (firstName.isEmpty && lastName.isEmpty) return 'Pengguna DriveOn';
+    if (firstName.isEmpty && lastName.isEmpty) {
+      return 'Pengguna DriveOn';
+    }
     if (lastName.isEmpty) return firstName;
     return '$firstName $lastName';
   }
 
-  /// ===================== LOGIN GOOGLE =====================
-  ///
-  /// Dipanggil dari ProfileScreen._showLoginSheet()
-  /// Tombol "Lanjutkan Dengan Google"
-  Future<void> loginWithGoogle() async {
-    try {
-      // Buka UI pilih akun Google
-      final GoogleSignInAccount? account = await _googleSignIn.signIn();
+  // ================== SHARED PREFERENCES ==================
 
-      // Kalau user batal / back, account bisa null
-      if (account == null) {
-        return;
-      }
+  static const _keyLoggedIn = 'user_logged_in';
+  static const _keyFirstName = 'user_first_name';
+  static const _keyLastName = 'user_last_name';
+  static const _keyEmail = 'user_email';
+  static const _keyRegion = 'user_region';
 
-      // Berhasil login -> simpan status & data dasar
-      isLoggedIn = true;
+  Future<void> loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
 
-      email = account.email;
-
-      final displayName = account.displayName?.trim() ?? '';
-      if (displayName.isEmpty) {
-        // kalau tidak ada nama, kasih default
-        firstName = 'Pengguna';
-        lastName = 'DriveOn';
-      } else {
-        final parts = displayName.split(' ');
-        firstName = parts.first;
-        lastName =
-            parts.length > 1 ? parts.sublist(1).join(' ') : '';
-      }
-    } catch (e) {
-      // Kalau gagal login, jangan bikin app crash
-      isLoggedIn = false;
-    }
+    _isLoggedIn = prefs.getBool(_keyLoggedIn) ?? false;
+    firstName = prefs.getString(_keyFirstName) ?? '';
+    lastName = prefs.getString(_keyLastName) ?? '';
+    email = prefs.getString(_keyEmail) ?? '';
+    region = prefs.getString(_keyRegion) ?? 'Pilih wilayah';
   }
 
-  /// ===================== EMAIL (DUMMY) =====================
-  ///
-  /// Supaya layar auth email kamu nggak error.
-  /// Nanti kalau mau, tinggal diganti pakai Firebase Auth / backend beneran.
-
-  Future<void> signInWithEmail({
-    required String email,
-    required String password,
-  }) async {
-    isLoggedIn = true;
-    this.email = email;
-    if (firstName.isEmpty && lastName.isEmpty) {
-      firstName = 'Pengguna';
-      lastName = 'DriveOn';
-    }
+  Future<void> _saveToPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyLoggedIn, _isLoggedIn);
+    await prefs.setString(_keyFirstName, firstName);
+    await prefs.setString(_keyLastName, lastName);
+    await prefs.setString(_keyEmail, email);
+    await prefs.setString(_keyRegion, region);
   }
 
-  Future<void> registerWithEmail({
-    required String email,
-    required String password,
-    String? firstName,
-    String? lastName,
-  }) async {
-    isLoggedIn = true;
-    this.email = email;
-    if (firstName != null && firstName.isNotEmpty) {
-      this.firstName = firstName;
-    } else if (this.firstName.isEmpty) {
-      this.firstName = 'Pengguna';
-    }
-
-    if (lastName != null && lastName.isNotEmpty) {
-      this.lastName = lastName;
-    } else if (this.lastName.isEmpty) {
-      this.lastName = 'DriveOn';
-    }
-  }
-
-  /// ===================== PROFIL & LOGOUT =====================
-
-  void updateProfile({
-    String? firstName,
-    String? lastName,
-    String? email,
-    String? region,
-  }) {
-    if (firstName != null) this.firstName = firstName;
-    if (lastName != null) this.lastName = lastName;
-    if (email != null) this.email = email;
-    if (region != null) this.region = region;
-  }
-
-  /// Logout lokal + usahakan juga signOut dari Google
-  Future<void> logoutGoogle() async {
-    try {
-      await _googleSignIn.signOut();
-    } catch (_) {
-      // kalau gagal signOut di plugin, abaikan saja
-    }
-    logout();
-  }
-
-  void logout() {
-    isLoggedIn = false;
+  void _resetLocal() {
+    _isLoggedIn = false;
     firstName = '';
     lastName = '';
     email = '';
     region = 'Pilih wilayah';
   }
 
-  void deleteAccount() {
-    // Untuk sekarang sama seperti logout,
-    // nanti kalau sudah ada backend bisa ditambah logika hapus akun.
-    logout();
+  // ================== GOOGLE LOGIN ==================
+
+  /// Dipanggil dari ProfileScreen → tombol "Lanjutkan dengan Google"
+  Future<void> loginWithGoogle() async {
+    try {
+      // buka UI pilih akun Google
+      final g_sign.GoogleSignInAccount? account =
+          await _googleSignIn.signIn();
+
+      // kalau user batal / back, account = null
+      if (account == null) return;
+
+      // Ambil nama & email
+      final displayName = account.displayName ?? '';
+      email = account.email;
+
+      final parts = displayName.trim().split(' ');
+      if (parts.isNotEmpty) {
+        firstName = parts.first;
+      }
+      if (parts.length > 1) {
+        lastName = parts.sublist(1).join(' ');
+      }
+
+      _isLoggedIn = true;
+      await _saveToPrefs();
+    } catch (e) {
+      // boleh kamu tambahkan debugPrint(e.toString());
+    }
+  }
+
+  /// Dipanggil dari ProfileScreen → "Keluar"
+  Future<void> logoutGoogle() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {
+      // ignore error
+    }
+
+    // Reset user lokal
+    _resetLocal();
+    await _saveToPrefs();
+
+    // ========= PENTING: hapus semua pesanan =========
+    OrdersStore.instance.clearAll();
+  }
+
+  /// Dipanggil dari Pengaturan Akun → "Hapus Akun?"
+  Future<void> deleteAccount() async {
+    try {
+      await _googleSignIn.disconnect();
+    } catch (_) {
+      // kalau gagal disconnect tidak apa2, lanjut reset lokal
+    }
+
+    _resetLocal();
+    await _saveToPrefs();
+
+    // Sekalian bersihkan semua pesanan
+    OrdersStore.instance.clearAll();
+  }
+
+  // ================== UPDATE PROFIL ==================
+
+  /// Dipakai di Profile & AccountSettings
+  Future<void> updateProfile({
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? region,
+  }) async {
+    if (firstName != null) this.firstName = firstName;
+    if (lastName != null) this.lastName = lastName;
+    if (email != null) this.email = email;
+    if (region != null) this.region = region;
+
+    await _saveToPrefs();
+  }
+
+  // ================== EMAIL / PASSWORD (LOCAL DUMMY) ==================
+  //
+  // Ini supaya kode di EmailAuthScreen tetap jalan walaupun
+  // belum ada backend beneran. Kita simpan di SharedPreferences saja.
+
+  static const _keyAuthEmail = 'auth_email';
+  static const _keyAuthPassword = 'auth_password';
+
+  Future<void> registerWithEmail({
+    required String email,
+    required String password,
+    required String firstName,
+    required String lastName,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Simpan "akun" lokal
+    await prefs.setString(_keyAuthEmail, email);
+    await prefs.setString(_keyAuthPassword, password);
+
+    // anggap langsung login
+    this.email = email;
+    this.firstName = firstName;
+    this.lastName = lastName;
+    _isLoggedIn = true;
+
+    await _saveToPrefs();
+  }
+
+  Future<void> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedEmail = prefs.getString(_keyAuthEmail);
+    final savedPass = prefs.getString(_keyAuthPassword);
+
+    if (savedEmail == email && savedPass == password) {
+      // login berhasil, tapi nama mungkin kosong
+      this.email = email;
+      if (firstName.isEmpty && lastName.isEmpty) {
+        firstName = email.split('@').first;
+      }
+      _isLoggedIn = true;
+      await _saveToPrefs();
+    } else {
+      // kalau kredensial salah, untuk sekarang cukup lempar exception sederhana
+      throw Exception('Email atau password salah');
+    }
   }
 }

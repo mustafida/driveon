@@ -1,3 +1,4 @@
+// lib/screens/onboarding_screen.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,15 +38,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _goNext() async {
     if (_currentPage < _pages.length - 1) {
-      _pageController.nextPage(
+      _pageController.animateToPage(
+        _currentPage + 1,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOutCubic,
       );
     } else {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('hasOnboarded', true);
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');
     }
+  }
+
+  void _goToPage(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
+    );
   }
 
   @override
@@ -57,137 +68,132 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     const bgColor = Color(0xFFE5E7EB);
+    final size = MediaQuery.of(context).size;
+
+    final currentData = _pages[_currentPage];
 
     return Scaffold(
       backgroundColor: bgColor,
       body: SafeArea(
-        child: PageView.builder(
-          controller: _pageController,
-          physics: const BouncingScrollPhysics(),
-          itemCount: _pages.length,
-          onPageChanged: (index) {
-            setState(() => _currentPage = index);
-          },
-          itemBuilder: (context, index) {
-            final data = _pages[index];
-            return _OnboardingPage(
-              data: data,
+        child: Column(
+          children: [
+            // ================== AREA GAMBAR (SWIPE) ==================
+            Expanded(
+              child: PageView.builder(
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _pages.length,
+                onPageChanged: (index) {
+                  setState(() => _currentPage = index);
+                },
+                itemBuilder: (context, index) {
+                  return _ImagePage(imagePath: _pages[index].imagePath);
+                },
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ================== DOT INDIKATOR (BISA DI-TAP) ==================
+            _PageIndicator(
               currentPage: _currentPage,
               totalPages: _pages.length,
-              onNext: _goNext,
-            );
-          },
+              onDotTap: _goToPage,
+            ),
+
+            const SizedBox(height: 12),
+
+            // ================== CARD PUTIH BAWAH (STATIS) ==================
+            Container(
+              height: size.height * 0.32,
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    currentData.title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    currentData.description,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.4,
+                    ),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _goNext,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0066FF),
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: Text(
+                        currentData.buttonText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _OnboardingPage extends StatelessWidget {
-  final _OnboardData data;
-  final int currentPage;
-  final int totalPages;
-  final VoidCallback onNext;
+// ================== WIDGET GAMBAR FULL ==================
 
-  const _OnboardingPage({
-    required this.data,
-    required this.currentPage,
-    required this.totalPages,
-    required this.onNext,
-  });
+class _ImagePage extends StatelessWidget {
+  final String imagePath;
+
+  const _ImagePage({required this.imagePath});
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: Image.asset(
-            data.imagePath,
-            fit: BoxFit.cover,
-          ),
-        ),
-        Positioned(
-          top: size.height * 0.50,
-          left: 0,
-          right: 0,
-          child: _PageIndicator(
-            currentPage: currentPage,
-            totalPages: totalPages,
-          ),
-        ),
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: Container(
-            height: size.height * 0.32,
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(32),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  data.title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  data.description,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                    height: 1.4,
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0066FF),
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: Text(
-                      data.buttonText,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return SizedBox.expand(
+      child: Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+      ),
     );
   }
 }
 
+// ================== DOT INDIKATOR ==================
+
 class _PageIndicator extends StatelessWidget {
   final int currentPage;
   final int totalPages;
+  final void Function(int index) onDotTap;
 
   const _PageIndicator({
     required this.currentPage,
     required this.totalPages,
+    required this.onDotTap,
   });
 
   @override
@@ -197,20 +203,25 @@ class _PageIndicator extends StatelessWidget {
       children: List.generate(totalPages, (index) {
         final isActive = index == currentPage;
 
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.symmetric(horizontal: 4),
-          width: isActive ? 10 : 8,
-          height: isActive ? 10 : 8,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(isActive ? 1 : 0.5),
-            shape: BoxShape.circle,
+        return GestureDetector(
+          onTap: () => onDotTap(index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: isActive ? 10 : 8,
+            height: isActive ? 10 : 8,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(isActive ? 1 : 0.5),
+              shape: BoxShape.circle,
+            ),
           ),
         );
       }),
     );
   }
 }
+
+// ================== MODEL DATA ==================
 
 class _OnboardData {
   final String imagePath;
